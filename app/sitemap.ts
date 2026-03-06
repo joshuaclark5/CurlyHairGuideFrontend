@@ -12,15 +12,16 @@ const fetchNoCache = (url: string, options?: RequestInit) => {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const timestamp = new Date().toISOString();
-  console.log(`GENERATING VIP SITEMAP (Debug Mode) at ${timestamp}`);
+  console.log(`GENERATING CURLYHAIRGUIDE SITEMAP at ${timestamp}`);
 
+  // 1. Hook up to the NEW 'Service Role Key' from your `.env.local`
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
   if (!serviceKey) {
     console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing!');
   }
 
-  // Initialize Supabase with the Service Key (Bypasses RLS)
+  // Initialize Supabase with the NEW Service Key (Bypasses RLS to see all profiles)
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceKey || '', 
@@ -32,73 +33,45 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   );
 
-  const baseUrl = 'https://www.microfreelancehub.com';
+  // 2. Updated Brand URL (The final 'CurlyHairGuide.com' destination)
+  const baseUrl = 'https://curlyhairguide.com';
 
-  // 1. FETCH SYSTEM TEMPLATES (Legacy "sow_documents")
-  const { data: systemTemplates, error: systemError } = await supabase
-    .from('sow_documents')
-    .select('slug')
-    .not('slug', 'is', null);
+  // 3. FETCH THE 50 Niche SEO PAGES (The New 'hair_profiles' Content)
+  // We only care about the slug (e.g., '4c-high-porosity')
+  const { data: nicheProfiles, error: nicheError } = await supabase
+    .from('hair_profiles')
+    .select('slug');
 
-  if (systemError) {
-    console.error('Error fetching system templates:', systemError.message);
+  if (nicheError) {
+    console.error('Error fetching niche hair profiles:', nicheError.message);
   } else {
-    console.log(`System Templates Found: ${systemTemplates?.length || 0}`);
+    console.log(`Hair Profiles Found: ${nicheProfiles?.length || 0}`);
   }
 
-  // 2. FETCH SEO PAGES (The New "Enriched" Content)
-  const { data: seoPages, error: seoError } = await supabase
-    .from('seo_pages')
-    .select('slug, document_type');
+  // 4. MAPPING
 
-  if (seoError) {
-    console.error('Error fetching SEO pages:', seoError.message);
-  } else {
-    console.log(`SEO Pages Found: ${seoPages?.length || 0}`);
-  }
-
-  // 3. MAPPING
-  // Legacy Templates
-  const systemUrls = (systemTemplates || []).map((doc) => ({
-    url: `${baseUrl}/templates/${doc.slug}`,
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.8,
-  }));
-
-  // SEO Pages (BULLETPROOF ROUTING)
-  const seoUrls = (seoPages || []).map((page) => {
-    // 🛡️ Bulletproof Check: If it starts with 'alternative-to-', it's a comparison page.
-    const isCompetitor = page.slug?.startsWith('alternative-to-') || page.document_type?.toLowerCase() === 'comparison';
-    
-    const folder = isCompetitor ? 'alternatives' : 'templates';
-    
+  // Hair Profile URLs (Niche Traffic Pages)
+  const nicheUrls = (nicheProfiles || []).map((page) => {
+    // 🛡️ MAPPING TO THE 'routine/' FOLDER: www.curlyhairguide.com/routine/slug
     return {
-      url: `${baseUrl}/${folder}/${page.slug}`,
+      url: `${baseUrl}/routine/${page.slug}`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.9,
     };
   });
 
-  // 4. STATIC ROUTES (VIP ONLY)
+  // 5. STATIC ROUTES (Clean Slate)
   const staticRoutes: MetadataRoute.Sitemap = [
+    // Home Page (Main Quiz)
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
-    { url: `${baseUrl}/create`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    // Legal/Disclaimer (Professional Touch)
+    { url: `${baseUrl}/disclaimer`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${baseUrl}/privacy-policy`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
   ];
 
-  // Combine ALL
-  let finalSitemap = [...staticRoutes, ...systemUrls, ...seoUrls];
-  
-  // 5. DEDUPLICATION
-  const uniqueUrls = new Set();
-  finalSitemap = finalSitemap.filter((item) => {
-    if (uniqueUrls.has(item.url)) {
-      return false;
-    }
-    uniqueUrls.add(item.url);
-    return true;
-  });
+  // Combine ALL (Zero Deduplication Needed on this clean slate)
+  const finalSitemap = [...staticRoutes, ...nicheUrls];
   
   console.log(`SITEMAP GENERATION COMPLETE: ${finalSitemap.length} URLs`);
   

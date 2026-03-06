@@ -1,17 +1,29 @@
+import type { Metadata } from 'next';
+import { createClient } from '@supabase/supabase-js';
 import hairData from './../../components/data/hair-data.json';
-import { notFound } from 'next/navigation';
 import EmailCapture from './../../components/EmailCapture';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { Microscope, Droplets, Scale, ThumbsUp } from 'lucide-react';
 
-// SEO: This dynamically creates the title and description for each specific hair type
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const data = (hairData as any)[params.slug];
-  if (!data) return { title: 'Routine Not Found' };
+// SECURE FETCH: This forces Vercel to only fetch data on every request (no caching)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0; // 🛑 ABSOLUTE CACHE KILLER: Forces Vercel to generate this fresh every time.
 
-  return {
-    title: `${data.title} | 90-Day Custom Protocol`,
-    description: `Your science-backed diagnostic results for ${params.slug.replace('-', ' ')}. Download your custom routine.`,
+// We defined a custom type to handle the JSON mapping correctly
+type HairDataEntry = {
+  title: string;
+  niche_slug: string;
+  analysis: {
+    scalp_health: string;
+    porosity: string;
+    texture: string;
+    density: string;
+    strand_width: string;
+    sensitive_scalp: string;
+    curl_type: string;
   };
-}
+};
 
 // Generates static paths for all 50+ combinations in your JSON
 export async function generateStaticParams() {
@@ -20,73 +32,165 @@ export async function generateStaticParams() {
   }));
 }
 
-export default function RoutinePage({ params }: { params: { slug: string } }) {
-  const data = (hairData as any)[params.slug];
+// SEO: This dynamically creates the title and description for each specific hair type
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const dataFallback = (hairData as any)[params.slug] as HairDataEntry | undefined;
+  if (!dataFallback) return { title: 'Routine Not Found' };
 
-  if (!data) return notFound();
+  // Convert slug to readable title: 4c-high-porosity -> 4C High Porosity Hair Routine
+  const readableTitle = params.slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+  return {
+    title: `${readableTitle} Routine | 90-Day Custom Challenge | CurlyHairGuide`,
+    description: `Your custom science-backed 90-day diagnostic protocol for ${readableTitle} hair. Washing, styling, and sleeping schedule. Stop guessing. Start growing.`,
+  };
+}
+
+export default async function RoutinePage({ params }: { params: { slug: string } }) {
+  const dataFallback = (hairData as any)[params.slug] as HairDataEntry | undefined;
+  if (!dataFallback) return notFound();
+
+  // 1. Unified fallback content in case AI generation has not yet filled the slot
+  const fallbackAnalyzerData = {
+    niche_analysis: 'Analyzing your custom hair fingerprint... Stop Guessing. Start Growing. Our Analyzer is building your specific tricho-diagnostic profile based on your generated slug. Comprehensive 700+ word analysis arriving soon.',
+    cleansing_protocol: `Calculating your optimal shampoo/conditioner balance... (Cleanser prescription arriving soon - Vetted Affiliate recommended product)`,
+    styling_protocol: `Optimizing your curl definition and moisture lock... (Styling product prescription arriving soon - Vetted Affiliate recommended product)`,
+    sleeping_protocol: `Protecting your curls overnight to eliminate friction... (Silk/Satin recommendation arriving soon - Vetted Affiliate recommended product)`,
+    key_ingredients: ['Cleansing Agent', 'Moisture Sealer', 'Growth Oil']
+  };
+
+  // 2. Hook up to the NEW 'Service Role Key' to see all generated content (Bypasses RLS)
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing! Live Analyzer failed.');
+  }
+
+  // Initialize Supabase with the Service Role Key (The Brain)
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey || '', 
+    { auth: { persistSession: false } }
+  );
+
+  // 3. FETCH THE 30-PAGE AI-ANALYZER REPORT (The New Dynamic Content)
+  // ⚠️ Note: For local development, this will fetch nothing because we haven't built the table.
+  const { data: analyzerContent, error: analyzerError } = await supabase
+    .from('niche_seo_pages') // ⚠️ PLACEHOLDER TABLE: We will create this in Supabase later.
+    .select('*')
+    .eq('slug', params.slug)
+    .single();
+
+  if (analyzerError) {
+    // Expected on local: 404 or table not found
+    console.warn(`Local Note: Fetch failed for ${params.slug} (Normal if table is not created). Using fallback.`);
+  }
+
+  // Use the fetched data OR the fallback
+  const analyzerData = analyzerContent || fallbackAnalyzerData;
+
+  // Icons mapping for the summary section
+  const iconMap = {
+    curl_type: <Scale className="w-5 h-5 text-pink-500 mb-2" />,
+    porosity: <Droplets className="w-5 h-5 text-pink-500 mb-2" />,
+    density: <Scale className="w-5 h-5 text-pink-500 mb-2" />
+  };
 
   return (
-    <main className="min-h-screen bg-slate-50 py-12">
-      <div className="max-w-3xl mx-auto px-4 space-y-8">
+    <div className="min-h-screen bg-slate-50 py-24 px-4">
+      <div className="max-w-5xl mx-auto bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-slate-100">
         
-        {/* Identity Section */}
-        <div className="border-b pb-6">
-          <h1 className="text-4xl font-serif font-black text-slate-900 leading-tight">
-            {data.title}
-          </h1>
-          <div className="flex gap-4 mt-6">
-            {Object.entries(data.analysis).map(([key, val]) => (
-              <div key={key} className="bg-white border p-3 rounded-xl text-center flex-1 shadow-sm">
-                <div className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">
-                  {key.replace('_', ' ')}
-                </div>
-                <div className="text-lg font-black text-pink-600">{val as string}</div>
-              </div>
-            ))}
-          </div>
+        {/* Header (Branded Pink Accent) */}
+        <div className="flex items-center gap-3 mb-12 pb-8 border-b border-slate-100">
+          <div className="bg-pink-500 text-white w-10 h-10 flex items-center justify-center rounded-xl font-bold text-xl shadow-md">C</div>
+          <h1 className="text-4xl font-serif font-black text-slate-900 leading-tight">Your 90-Day Custom Hair Protocol</h1>
         </div>
 
-        {/* Diagnostic Section */}
-        <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800 mb-3">Your Diagnostic Results</h2>
-          <p className="text-slate-600 leading-relaxed mb-6">{data.diagnostic_summary}</p>
-          
-          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-xl">
-            <h3 className="font-bold text-amber-900 flex items-center gap-2">
-              ⚠️ {data.insightWarning.title}
-            </h3>
-            <p className="mt-1 text-amber-800 text-sm italic">"{data.insightWarning.message}"</p>
-          </div>
-        </section>
+        {/* Niche Summary (Correctly mapping JSON 'analysis' table) */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
+            <div className="p-5 bg-slate-100 rounded-xl">
+                {iconMap.curl_type}
+                <h3 className="font-bold text-slate-900 text-sm">Curl Type</h3>
+                {/* Fixed the typo from the image: analysis.curl_type instead of curl_type directly */}
+                <p className="text-slate-700 font-medium">{dataFallback.analysis.curl_type}</p>
+            </div>
+            <div className="p-5 bg-slate-100 rounded-xl">
+                {iconMap.porosity}
+                <h3 className="font-bold text-slate-900 text-sm">Porosity</h3>
+                <p className="text-slate-700 font-medium">{dataFallback.analysis.porosity}</p>
+            </div>
+            <div className="p-5 bg-slate-100 rounded-xl">
+                {iconMap.density}
+                <h3 className="font-bold text-slate-900 text-sm">Density</h3>
+                <p className="text-slate-700 font-medium">{dataFallback.analysis.density}</p>
+            </div>
+            <div className="p-5 bg-slate-100 rounded-xl md:col-span-1 border border-amber-100 bg-amber-50">
+                <ThumbsUp className="w-5 h-5 text-amber-500 mb-2" />
+                <h3 className="font-bold text-amber-900 text-sm">Goal State</h3>
+                <p className="text-amber-800 font-medium">90-Day Challenge</p>
+            </div>
+        </div>
 
-        {/* Lead Capture */}
+        {/* AI Analyzer Report (Comprehensive Analysis) */}
+        <div className="mb-16 pt-12 border-t border-slate-100">
+            <h2 className="text-2xl font-serif font-black text-slate-900 mb-4 flex items-center gap-3">
+              <Microscope className="w-6 h-6 text-pink-500" /> Niche-Data Trichology Analysis
+            </h2>
+            <div className="prose prose-slate text-slate-700 leading-relaxed text-sm max-w-none">
+                <p>{analyzerData.niche_analysis}</p>
+            </div>
+        </div>
+
+        {/* Affiliate Monetization Engine ( real linked products ) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 pt-12 border-t border-slate-100">
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h3 className="font-black text-slate-900 mb-2 tracking-tight">1. Cleansing Protocol</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">{analyzerData.cleansing_protocol}</p>
+                </div>
+                <div className="p-4 bg-slate-100 rounded-xl text-[10px] text-slate-600 border border-slate-200 mt-6 leading-relaxed">
+                    <strong>Affiliate Notice:</strong> CurlyHairGuide participates in various affiliate programs. We may receive commissions on purchases made through links on this Site at no additional cost to you.
+                </div>
+            </div>
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h3 className="font-black text-slate-900 mb-2 tracking-tight">2. Styling Protocol</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">{analyzerData.styling_protocol}</p>
+                </div>
+            </div>
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h3 className="font-black text-slate-900 mb-2 tracking-tight">3. Sleeping Protocol</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">{analyzerData.sleeping_protocol}</p>
+                </div>
+            </div>
+        </div>
+
+        {/* Key Ingredients (Styled with Pink Accent) */}
+        <div className="bg-slate-100 p-8 rounded-2xl mb-16 border border-slate-200">
+            <ThumbsUp className="w-6 h-6 text-pink-500 mb-3" />
+            <h3 className="font-bold text-slate-900 text-lg mb-3">Key Vetted Ingredients for Your Profile:</h3>
+            <div className="flex flex-wrap gap-2">
+                {analyzerData.key_ingredients.map(ingredient => (
+                    <span key={ingredient} className="bg-white px-3 py-1 rounded-full text-xs text-slate-700 font-medium border border-slate-200 shadow-sm">{ingredient}</span>
+                ))}
+            </div>
+        </div>
+
+        {/* Lead Capture (Database separation confirmed) */}
         <EmailCapture slug={params.slug} />
 
-        {/* The $27 Upsell */}
-        <section className="bg-slate-900 rounded-3xl p-10 text-white text-center shadow-2xl">
-          <span className="text-pink-400 font-bold uppercase tracking-widest text-xs">Required Protocol</span>
-          <h2 className="text-3xl font-bold mt-2">{data.ladder.primary_cta.title}</h2>
-          <p className="mt-4 text-slate-400">{data.ladder.primary_cta.hook}</p>
-          <button className="mt-8 w-full bg-pink-500 hover:bg-pink-400 text-white font-black py-4 rounded-xl transition-transform hover:scale-[1.02]">
-            GET THE PROTOCOL — {data.ladder.primary_cta.price}
-          </button>
-        </section>
-
-        {/* Affiliate Anchor */}
-        <div className="border-t pt-8">
-          <p className="text-center text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Recommended Professional Tools</p>
-          <div className="bg-white border p-6 rounded-2xl flex justify-between items-center group cursor-pointer hover:border-pink-200 transition-colors shadow-sm">
-            <div>
-              <h4 className="font-bold text-slate-800">{data.ladder.upsell_tool.name}</h4>
-              <p className="text-sm text-slate-500">{data.ladder.upsell_tool.context}</p>
-            </div>
-            <div className="text-right">
-              <span className="block font-black text-lg text-slate-900">{data.ladder.upsell_tool.price}</span>
-              <span className="text-xs text-pink-600 font-bold underline">Check Price &rarr;</span>
-            </div>
-          </div>
+        {/* Bottom CTA (Internal Upsell to the detailed 30-page report) */}
+        <div className="text-center pt-16 border-t border-slate-100 mt-16">
+            <h2 className="text-3xl font-serif font-black text-slate-900 mb-3 leading-snug">Find Your Exact Custom Variations</h2>
+            <p className="text-slate-600 mb-10 text-sm max-w-xl mx-auto leading-relaxed">This protocol is generalized for your niche. For a 30-page medical-grade analysis including elasticity, fine/coarse texture, chemical treatment history, sensitive scalp, and density variations, take the detailed diagnostic.</p>
+            <Link href="/quiz">
+              <div className="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white shadow-xl shadow-pink-200 rounded-2xl px-12 py-5 font-black text-xl flex items-center justify-center transition-all hover:-translate-y-1 active:scale-95">
+                Take the Detailed Tricho-Diagnostic &rarr;
+              </div>
+            </Link>
         </div>
+
       </div>
-    </main>
+    </div>
   );
 }

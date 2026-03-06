@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import FeedbackWidget from './components/FeedbackWidget';
 import Link from 'next/link';
-import { GoogleAnalytics } from '@next/third-parties/google'; // 👈 KEEPING THIS IMPORT
+import { GoogleAnalytics } from '@next/third-parties/google'; // 👈 Activated with new ID
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -55,7 +55,7 @@ export default function RootLayout({
         <footer className="bg-slate-50 border-t border-slate-100 py-12 px-4 print:hidden">
             <div className="max-w-7xl mx-auto text-center">
                 
-                {/* Updated Brand */}
+                {/* Updated Brand: Pink 'C' */}
                 <div className="flex items-center justify-center gap-2 mb-6 opacity-60">
                     <div className="bg-pink-500 text-white w-6 h-6 flex items-center justify-center rounded-md font-bold text-xs shadow-sm">C</div>
                     <span className="font-bold text-slate-900 text-sm italic">CurlyHairGuide</span>
@@ -66,7 +66,7 @@ export default function RootLayout({
                     <strong>DISCLAIMER:</strong> The diagnostic tools, results, and protocols provided by CurlyHairGuide are for informational and educational purposes only. We are not medical professionals and do not provide medical advice. Consult with a trichologist or dermatologist for clinical concerns. Use of this site is at your own risk. This site contains affiliate links; we may receive a commission at no additional cost to you.
                 </p>
 
-                {/* Legal Links */}
+                {/* Legal Links (Pink Accent) */}
                 <div className="flex justify-center gap-6 text-xs text-slate-500 font-medium">
                     <Link href="/terms-of-service" className="hover:text-pink-600 transition-colors">Terms of Service</Link>
                     <Link href="/privacy-policy" className="hover:text-pink-600 transition-colors">Privacy Policy</Link>
@@ -79,10 +79,10 @@ export default function RootLayout({
             </div>
         </footer>
 
-        {/* Keeping the widget as requested, though you should verify its backend is separated too */}
+        {/* Keeping the widget as requested */}
         <FeedbackWidget />
         
-        {/* 📊 ANALYTICS COMPONENT - UPDATED WITH YOUR NEW MEASUREMENT ID FROM IMAGE 24 */}
+        {/* 📊 ANALYTICS COMPONENT - Activated with your new Measurement ID from Image 14 */}
         <GoogleAnalytics gaId="G-LV7QTZR1NG" /> 
       </body>
     </html>
