@@ -1,49 +1,39 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-// 🛡️ THE FIX: Import the Lucide Icons correctly. We also need standard 'Target' and standard 'Droplet'
-import { ThumbsUp, Microscope, Droplets, Droplet, UserCheck, Wind, CalendarDays, BrainCircuit, Target, BookOpenCheck } from 'lucide-react';
+import { Microscope, Droplets, Droplet, BrainCircuit, Target, BookOpenCheck } from 'lucide-react';
 
-// Unified 15-Question, Expert-Verified Tricho-Diagnostic (Gemini Research IV)
 const QUESTIONS = [
   { id: 'type', label: 'What is your closest curl pattern?', options: ['2A: Wavy (S-shape bends)', '2B: Wavy (Deep S-shape)', '2C: Wavy/Curly (Defined Waves)', '3A: Curly (Defined Ringlets)', '3B: Curly (Springy Coils)', '3C: Curly (Tight Corkscrews)', '4A: Coily (Defined S-coils)', '4B: Coily (Tight Z-patterns)', '4C: Coily (Super tight/Shrinkage)'] },
-  
-  // Section I: Scalp Health
-  { id: 'cleansing_frequency', label: 'How often do you find it necessary to shampoo your hair due to oiliness at the roots?', options: ['Daily (Indicates high sebum production)', 'Every 2-3 days (Normal regulation)', 'Once a week or less (Dry scalp)'] },
-  { id: 'flaking_profile', label: 'If you experience flaking, which description best matches your symptoms?', options: ['Small, dry, white flakes that fall (Dry Scalp)', 'Large, oily, yellow/white flakes that stick (Dandruff/Seborrheic Dermatitis)', 'No flaking'] },
-  { id: 'scalp_sensation', label: 'How does your scalp feel 24 hours after washing?', options: ['Tight, itchy, or stinging (Barrier disruption)', 'Greasy, occasionally itchy, not tight (High sebum)', 'Normal/Healthy'] },
-  
-  // Section II: Fiber Morphology
-  { id: 'texture', label: 'Take a single hair and roll it. How does it feel?', options: ['I can barely feel it; it\'s like a silk thread (Fine)', 'I can feel it clearly; like a cotton thread (Medium)', 'It feels thick, wiry, or creates resistance (Coarse)'] },
-  { id: 'density', label: 'When you part your hair or pull it into a ponytail, how visible is your scalp?', options: ['Very visible; my ponytail is thin (Low Density)', 'Barely visible; my ponytail is thick (High Density)', 'Normal Visibility'] },
-  { id: 'porosity', label: 'When you place a clean, dry strand in water, what happens?', options: ['It floats on the surface for a long time (Low Porosity)', 'It sinks slowly to the middle (Medium Porosity)', 'It sinks to the bottom almost immediately (High Porosity)'] },
-  { id: 'elasticity', label: 'Take a wet strand and gently stretch it. How does it behave?', options: ['It stretches and bounces back (High Elasticity)', 'It stretches but stays limp/mushy (Low Elasticity)', 'It snaps immediately without stretching (Brittle)'] },
-  
-  // Section III: Chemical & Environmental History
-  { id: 'oxidative_damage', label: 'In the last 12 months, which chemical treatments have you received?', options: ['Bleach, high-lift blonde, highlights (Severe breakage)', 'Permanent color or gray coverage (Cuticle disruption)', 'No chemical treatments (Virgin hair)'] },
-  { id: 'thermal_exposure', label: 'How many times per week do you use high-heat tools (irons, dryers)?', options: ['4-7 times (High stress)', '1-3 times (Moderate stress)', 'Never/Rarely'] },
-  { id: 'hard_water', label: 'Is Layton water (Very Hard: 352 PPM) leaving your hair "gritty," "coated," or color brassy?', options: ['Yes, this is a frequent issue', 'No, my hair feels clean'] },
-  
-  // Section IV: Lifestyle & Maintenance
-  { id: 'product_layering', label: 'How does your hair respond to heavy creams or oils?', options: ['It absorbs them well and looks better (High Porosity/Coarse)', 'It looks greasy, stringy, or limp (Low Porosity/Fine)'] },
-  { id: 'mechanical_stress', label: 'What surface does your hair rest on for the 7-9 hours you sleep?', options: ['Standard cotton pillowcase (High friction)', 'Silk or satin pillowcase/bonnet (Low friction)'] },
-  { id: 'daily_activity', label: 'Do you engage in high-sweat activities or swimming more than twice a week?', options: ['Yes (Frequent salt/chlorine exposure)', 'No'] },
-  { id: 'frustration', label: 'What is the single biggest issue you want to resolve?', options: ['Breakage and thinning', 'Frizz and lack of definition', 'Scalp irritation and flaking'] },
+  { id: 'cleansing_frequency', label: 'How often do you shampoo due to oiliness?', options: ['Daily (High sebum)', 'Every 2-3 days (Normal)', 'Once a week or less (Dry)'] },
+  { id: 'flaking_profile', label: 'Which best matches your flaking symptoms?', options: ['Small, dry, white flakes (Dry Scalp)', 'Large, oily, yellow/white flakes (Dandruff)', 'No flaking'] },
+  { id: 'scalp_sensation', label: 'How does your scalp feel 24h after washing?', options: ['Tight, itchy, or stinging (Barrier disruption)', 'Greasy, occasionally itchy (High sebum)', 'Normal/Healthy'] },
+  { id: 'texture', label: 'How does a single hair strand feel?', options: ['Like a silk thread (Fine)', 'Like a cotton thread (Medium)', 'Thick or wiry (Coarse)'] },
+  { id: 'density', label: 'How visible is your scalp?', options: ['Very visible (Low Density)', 'Barely visible (High Density)', 'Normal Visibility'] },
+  { id: 'porosity', label: 'What happens to a strand in water?', options: ['It floats (Low Porosity)', 'It sinks slowly (Medium Porosity)', 'It sinks immediately (High Porosity)'] },
+  { id: 'elasticity', label: 'How does a wet strand stretch?', options: ['Stretches and bounces back (High Elasticity)', 'Stretches but stays limp (Low Elasticity)', 'Snaps immediately (Brittle)'] },
+  { id: 'oxidative_damage', label: 'Chemical treatments in the last 12 months?', options: ['Bleach or high-lift blonde', 'Permanent color', 'No chemical treatments (Virgin)'] },
+  { id: 'thermal_exposure', label: 'High-heat tool use per week?', options: ['4-7 times (High stress)', '1-3 times (Moderate stress)', 'Never/Rarely'] },
+  { id: 'hard_water', label: 'Does Layton water (352 PPM) leave hair "gritty"?', options: ['Yes, frequently', 'No, feels clean'] },
+  { id: 'product_layering', label: 'Response to heavy creams or oils?', options: ['Absorbs well (High Porosity)', 'Looks greasy/limp (Low Porosity)'] },
+  { id: 'mechanical_stress', label: 'What surface does your hair rest on at night?', options: ['Cotton pillowcase (High friction)', 'Silk/Satin bonnet (Low friction)'] },
+  { id: 'daily_activity', label: 'High-sweat or swimming >2x a week?', options: ['Yes (Frequent exposure)', 'No'] },
+  { id: 'frustration', label: 'Biggest issue to resolve?', options: ['Breakage and thinning', 'Frizz and definition', 'Scalp irritation'] },
 ];
 
 export default function QuizComponent() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [email, setEmail] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
+  const [showEmailStep, setShowEmailStep] = useState(false);
   const router = useRouter();
 
-  // Branded "Analyzer" messages (Labor Illusion)
   const analysisMessages = [
     { icon: BrainCircuit, message: "Activating AI Tricho-Analyzer (Gemini V1.5 Pro)..." },
     { icon: Microscope, message: "Cross-referencing scalp biome and texture data..." },
     { icon: Droplets, message: "Simulating porosity absorption and hydration curves..." },
-    // 🛡️ THE FIX: standard 'Target' and standard 'Droplet' instead of targets/targeted
     { icon: Droplet, message: "Consulting established Layton, UT water mineral data (352 PPM)..." },
     { icon: Target, message: "Generating your custom 30-day washing, styling, and sleeping schedule..." },
     { icon: BookOpenCheck, message: "Finalizing your Prescription Protocol..." }
@@ -57,56 +47,73 @@ export default function QuizComponent() {
     if (step < QUESTIONS.length - 1) {
       setStep(step + 1);
     } else {
-      // Begin "Fake AI" Processing
-      setIsAnalyzing(true);
-      
-      // Generating a temporary generalized slug based on key data
-      const porositySlug = newAnswers.porosity.toLowerCase().includes('high') ? 'high' : 'low';
-      const simpleType = newAnswers.type.split(':')[0].toLowerCase();
-      const slug = `${simpleType}-${porositySlug}-porosity`;
-      
-      // 🛡️ DATA SAFEGUARD: Store the FULL 15-question profile. The Analyzer will read this later.
-      localStorage.setItem('user_hair_profile', JSON.stringify(newAnswers));
-
-      let interval = setInterval(() => {
-        setAnalysisStep(prev => {
-          if (prev >= analysisMessages.length - 1) {
-            clearInterval(interval);
-            router.push(`/routine/${slug}`);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, 850); // Slightly slower to sell the complexity
+      setShowEmailStep(true);
     }
   };
 
-  // 1. The "Fake AI" Processing Screen (Pink/Slate Labor Illusion)
+  const handleFinalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAnalyzing(true);
+    
+    // Save the complete profile with email to localStorage for the Analyze page
+    const finalData = { ...answers, email };
+    localStorage.setItem('user_hair_profile', JSON.stringify(finalData));
+
+    let interval = setInterval(() => {
+      setAnalysisStep(prev => {
+        if (prev >= analysisMessages.length - 1) {
+          clearInterval(interval);
+          router.push('/analyze'); // 🚀 REDIRECT TO LIVE AI ENGINE
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 850);
+  };
+
   if (isAnalyzing) {
     const ActiveIcon = analysisMessages[analysisStep].icon;
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center space-y-8 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner min-h-[400px]">
         <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin shadow-lg"></div>
-        
         <div className="flex items-center gap-3 p-4 bg-white rounded-2xl shadow-sm border border-slate-100 max-w-lg mx-auto transition-all">
           <ActiveIcon className="w-10 h-10 text-pink-500 flex-shrink-0" />
           <p className="text-2xl font-serif font-black text-slate-900 leading-snug animate-pulse">
             {analysisMessages[analysisStep].message}
           </p>
         </div>
-        
-        <p className="text-slate-400 text-sm italic max-w-sm mx-auto leading-relaxed">Please wait. We are analyzing 15 high-fidelity data points on your unique scalp biology, fiber physics, chemical history, and local climate (hard water data) to generate your science-backed Prescription Protocol.</p>
       </div>
     );
   }
 
-  // 2. The Interactive Quiz UI (Complete Branded Transform)
+  if (showEmailStep) {
+    return (
+      <div className="max-w-xl mx-auto p-12 bg-white rounded-3xl shadow-sm border border-slate-100 text-center">
+        <h2 className="text-3xl font-serif font-black text-slate-900 mb-4">Where should we send your results?</h2>
+        <p className="text-slate-500 mb-8 leading-relaxed">Your 15-point analysis is complete. We are ready to generate your 30-page Prescription Protocol and 90-day calendar.</p>
+        <form onSubmit={handleFinalSubmit} className="space-y-4">
+          <input 
+            type="email" 
+            required 
+            placeholder="Enter your email" 
+            className="w-full px-6 py-4 rounded-xl border-2 border-slate-100 outline-none focus:border-pink-500 transition-all text-lg"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-5 rounded-xl text-xl shadow-lg transition-all active:scale-95">
+            Generate My Protocol &rarr;
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-12 bg-white rounded-3xl shadow-sm border border-slate-100">
       <div className="mb-10 pb-10 border-b border-slate-100">
         <div className="flex items-center gap-2">
             <div className="bg-pink-500 text-white w-6 h-6 flex items-center justify-center rounded-md font-bold text-xs shadow-sm">C</div>
-            <span className="text-xs font-bold uppercase tracking-widest text-pink-500">Step {step + 1} of {QUESTIONS.length} (AI Tricho-Diagnostic)</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-pink-500">Step {step + 1} of {QUESTIONS.length}</span>
         </div>
         <h2 className="text-4xl font-serif font-black text-slate-900 mt-4 leading-snug max-w-2xl">{QUESTIONS[step].label}</h2>
       </div>
@@ -116,11 +123,11 @@ export default function QuizComponent() {
           <button
             key={opt}
             onClick={() => handleAnswer(opt)}
-            className="w-full py-5 px-8 text-left border-2 border-slate-100 rounded-2xl hover:border-pink-400 hover:bg-pink-50/50 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm flex items-center justify-between"
+            className="w-full py-5 px-8 text-left border-2 border-slate-100 rounded-2xl hover:border-pink-400 hover:bg-pink-50/50 transition-all group shadow-sm flex items-center justify-between"
           >
             <div>
               <p className="font-black text-slate-800 text-lg group-hover:text-pink-600 transition-colors leading-tight">{opt.split('(')[0]}</p>
-              {opt.includes('(') && <p className="text-xs text-slate-500 mt-1 italic group-hover:text-pink-500 transition-colors leading-relaxed">({opt.split('(')[1]}</p>}
+              {opt.includes('(') && <p className="text-xs text-slate-500 mt-1 italic group-hover:text-pink-500">({opt.split('(')[1]}</p>}
             </div>
             <div className="bg-slate-100 text-slate-400 w-8 h-8 flex items-center justify-center rounded-full font-bold group-hover:bg-pink-100 group-hover:text-pink-500 transition-colors shadow-inner">&rarr;</div>
           </button>
