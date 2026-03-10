@@ -22,13 +22,10 @@ function AnalyzeContent() {
     const sessionId = searchParams.get('session_id');
     const storedProfile = localStorage.getItem('user_hair_profile');
     if (sessionId) setIsPaid(true);
-
-    const storedProgress = localStorage.getItem('hair_progress');
-    if (storedProgress) setCompletedSteps(JSON.parse(storedProgress));
+    if (localStorage.getItem('hair_progress')) setCompletedSteps(JSON.parse(localStorage.getItem('hair_progress')!));
 
     if (!storedProfile) { router.push('/quiz'); return; }
-    const parsedProfile = JSON.parse(storedProfile);
-    setProfile(parsedProfile);
+    setProfile(JSON.parse(storedProfile));
 
     fetch('https://ipapi.co/json/').then(res => res.json()).then(data => setUserLocation(`${data.city}, ${data.region}`)).catch(() => setUserLocation('Layton, UT'));
 
@@ -41,7 +38,7 @@ function AnalyzeContent() {
         const response = await fetch('/api/generate-protocol', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers: parsedProfile, slug: 'analyzed-lead', currentDate }),
+          body: JSON.stringify({ answers: JSON.parse(storedProfile!), slug: 'analyzed-lead', currentDate }),
         });
         const data = await response.json();
         
@@ -55,7 +52,7 @@ function AnalyzeContent() {
             await fetch('/api/generate-protocol/send-results', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: parsedProfile.email, protocol: data.protocol }),
+              body: JSON.stringify({ email: JSON.parse(storedProfile!).email, protocol: data.protocol }),
             });
             setEmailSent(true);
           }
@@ -74,15 +71,14 @@ function AnalyzeContent() {
 
   const handleCheckout = async () => {
     try {
-      window.focus();
       const response = await fetch('/api/generate-protocol/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: profile?.email }),
       });
       const data = await response.json();
-      if (data.url) { window.location.href = data.url; }
-    } catch (err) { alert("Please use a standard browser window."); }
+      if (data.url) window.location.href = data.url;
+    } catch (err) { alert("Checkout error. Try a standard browser window."); }
   };
 
   if (isAnalyzing) {
@@ -93,7 +89,7 @@ function AnalyzeContent() {
            <div className="absolute inset-0 border-4 border-pink-500 rounded-full border-t-transparent animate-spin"></div>
            <div className="absolute inset-0 flex items-center justify-center font-black text-slate-900 text-xl tracking-tighter">{progress}%</div>
         </div>
-        <h2 className="text-2xl font-serif font-bold text-slate-800 tracking-tight italic uppercase tracking-widest animate-pulse">Synthesizing...</h2>
+        <h2 className="text-2xl font-serif font-bold text-slate-800 tracking-tight italic uppercase tracking-widest animate-pulse">Analyzing Biology...</h2>
       </div>
     );
   }
@@ -123,7 +119,7 @@ function AnalyzeContent() {
           </button>
         </div>
 
-        {/* SECTION I */}
+        {/* SECTION I: BIO ASSESSMENT */}
         <div className="bg-white p-10 md:p-16 rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden relative">
             <h2 className="text-xl md:text-2xl font-serif font-bold text-slate-800 mb-10 flex items-center gap-2 italic">
               <Microscope size={24} className="text-pink-500" /> SECTION I: Biological Assessment
@@ -145,35 +141,35 @@ function AnalyzeContent() {
             )}
         </div>
 
-        {/* PAID CONTENT */}
+        {/* PAID CONTENT: SECTION II & III */}
         {isPaid && (
           <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             
-            {/* INTERACTIVE CALENDAR */}
+            {/* 12-WEEK ROADMAP */}
             <div className="bg-slate-900 p-8 md:p-12 rounded-[3rem] text-white shadow-2xl border border-slate-800">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
-                <h2 className="text-3xl font-serif font-bold italic text-pink-400 flex items-center gap-3">
+                <h2 className="text-3xl font-serif font-bold italic text-pink-400 flex items-center gap-3 uppercase tracking-tighter">
                    <Calendar size={28} /> The 90-Day Roadmap
                 </h2>
                 <div className="bg-slate-800 px-6 py-3 rounded-2xl border border-slate-700">
-                   <p className="text-[10px] text-slate-500 font-black uppercase mb-1">Current Progress</p>
+                   <p className="text-[10px] text-slate-500 font-black uppercase mb-1">Total Progress</p>
                    <p className="font-mono text-pink-500 text-xl tracking-tighter">
                      {((completedSteps.length / 12) * 100).toFixed(0)}%
                    </p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-6">
                 {sections[1]?.split('<h4>').filter(Boolean).map((week, idx) => (
                   <div 
                     key={idx} 
                     onClick={() => toggleStep(`week-${idx}`)}
-                    className={`cursor-pointer transition-all duration-300 p-8 rounded-[2rem] border-2 flex items-start gap-6 ${completedSteps.includes(`week-${idx}`) ? 'bg-pink-500/10 border-pink-500/50 opacity-60' : 'bg-slate-800/40 border-slate-700 hover:border-slate-500'}`}
+                    className={`cursor-pointer transition-all duration-300 p-8 rounded-[2rem] border-2 flex items-start gap-6 ${completedSteps.includes(`week-${idx}`) ? 'bg-pink-500/10 border-pink-500/50 opacity-60 scale-[0.98]' : 'bg-slate-800/40 border-slate-700 hover:border-slate-500'}`}
                   >
                     <div className={`mt-1 p-1 rounded-full border-2 ${completedSteps.includes(`week-${idx}`) ? 'bg-pink-500 border-pink-500' : 'border-slate-600'}`}>
                       <CheckCircle size={20} className={completedSteps.includes(`week-${idx}`) ? 'text-white' : 'text-transparent'} />
                     </div>
-                    <div className="prose prose-invert prose-sm max-w-none prose-h4:text-pink-400 prose-h4:text-xl prose-h4:mb-4 prose-li:mb-2">
+                    <div className="prose prose-invert prose-sm max-w-none prose-h4:text-pink-400 prose-h4:text-xl prose-h4:mb-4 prose-li:mb-2 leading-relaxed">
                       <div dangerouslySetInnerHTML={{ __html: '<h4>' + week }} />
                     </div>
                   </div>
@@ -181,20 +177,19 @@ function AnalyzeContent() {
               </div>
             </div>
 
-            {/* PRODUCT GRID */}
+            {/* PRODUCT TOOLKIT GRID */}
             <div className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-sm">
               <h2 className="text-2xl font-serif font-bold mb-10 flex items-center gap-3 italic text-slate-800 uppercase tracking-tighter">
                 <ShoppingBag className="text-pink-500" /> SECTION III: Prescription Tool Kit
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {sections[2]?.split('\n').filter(line => line.includes('|')).map((line, i) => {
-                  const parts = line.split('|');
-                  if (parts.length < 3) return null;
+                  const [name, brand, link] = line.split('|');
                   return (
-                    <a href={parts[2].trim()} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center justify-between p-6 rounded-3xl bg-slate-50 border border-slate-100 hover:border-pink-300 hover:bg-pink-50 transition-all group">
+                    <a href={link.trim()} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center justify-between p-6 rounded-3xl bg-slate-50 border border-slate-100 hover:border-pink-300 hover:bg-pink-50 transition-all group">
                       <div className="flex-1 pr-4">
-                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">{parts[1].trim()}</p>
-                        <p className="font-bold text-slate-800 group-hover:text-pink-600 transition-colors leading-tight">{parts[0].trim()}</p>
+                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">{brand.trim()}</p>
+                        <p className="font-bold text-slate-800 group-hover:text-pink-600 transition-colors leading-tight">{name.trim()}</p>
                       </div>
                       <div className="bg-white p-3 rounded-2xl shadow-sm text-pink-500 group-hover:scale-110 group-hover:bg-pink-500 group-hover:text-white transition-all">
                         <ShoppingBag size={20} />
