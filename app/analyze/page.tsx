@@ -1,173 +1,194 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { BrainCircuit, Microscope, Droplets, Droplet, Target, BookOpenCheck } from 'lucide-react';
+import { useEffect, useState, Suspense, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Microscope, Lock, Sparkles, MapPin, CheckCircle } from 'lucide-react';
 
-export default function AnalyzePage() {
+function AnalyzeContent() {
   const [profile, setProfile] = useState<any>(null);
   const [protocol, setProtocol] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisStep, setAnalysisStep] = useState(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(true); 
+  const [progress, setProgress] = useState(0);
+  const [isPaid, setIsPaid] = useState(false);
+  const [userLocation, setUserLocation] = useState('Detecting...');
+  const [emailSent, setEmailSent] = useState(false);
+  
   const router = useRouter();
-
-  const analysisMessages = [
-    { icon: BrainCircuit, message: "Activating AI Tricho-Analyzer (Gemini V1.5 Pro)..." },
-    { icon: Microscope, message: "Cross-referencing scalp biome and texture data..." },
-    { icon: Droplets, message: "Simulating porosity absorption and hydration curves..." },
-    { icon: Droplet, message: "Consulting established Layton, UT water mineral data (352 PPM)..." },
-    { icon: Target, message: "Generating your custom 30-day washing, styling, and sleeping schedule..." },
-    { icon: BookOpenCheck, message: "Finalizing your Prescription Protocol..." }
-  ];
+  const searchParams = useSearchParams();
+  const currentDate = "March 9, 2026";
+  const fulfillmentTriggered = useRef(false);
 
   useEffect(() => {
-    // 1. DATA INGESTION
+    const sessionId = searchParams.get('session_id');
     const storedProfile = localStorage.getItem('user_hair_profile');
+    
+    if (sessionId) setIsPaid(true);
+
     if (!storedProfile) {
       router.push('/quiz');
       return;
     }
-    const answers = JSON.parse(storedProfile);
-    setProfile(answers);
+    const parsedProfile = JSON.parse(storedProfile);
+    setProfile(parsedProfile);
 
-    // 2. Begin Analyzer Phase
-    setIsAnalyzing(true);
-    let currentStep = 0;
-    const interval = setInterval(() => {
-        if(currentStep < 5) {
-            setAnalysisStep(prev => prev + 1);
-            currentStep++;
-        } else {
-            clearInterval(interval);
-        }
-    }, 900);
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => setUserLocation(`${data.city}, ${data.region}`))
+      .catch(() => setUserLocation('Layton, UT'));
 
-    // 3. GENERATION & AUTOMATED EMAIL CALL
-    async function generateProtocol() {
+    const progressInterval = setInterval(() => {
+      setProgress(prev => (prev < 99.9 ? parseFloat((prev + 0.9).toFixed(2)) : 99.9));
+    }, 150);
+
+    async function generateAndFulfill() {
       try {
-        // Step A: Generate the Protocol via Gemini
         const response = await fetch('/api/generate-protocol', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers, slug: 'analyzed-lead' }),
+          body: JSON.stringify({ answers: parsedProfile, slug: 'analyzed-lead', currentDate }),
         });
         const data = await response.json();
-
+        
         if (data.protocol) {
-          setProtocol(data.protocol);
+          const formattedProtocol = data.protocol
+            .replace(/\n\n/g, '<br/><br/>') 
+            .replace(/\n/g, '<br/>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/•/g, '<br/>•')
+            .replace(/###/g, '')
+            .replace(/#/g, '');
+          
+          setProtocol(formattedProtocol);
+          setProgress(100);
+          setTimeout(() => setIsAnalyzing(false), 500);
 
-          // Step B: Automatically trigger the Email "Mailman"
-          // It looks for the email saved in the quiz answers
-          await fetch('/api/generate-protocol/send-results', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              email: answers.email || answers.customer_email, 
-              protocol: data.protocol 
-            }),
-          });
-        } else if (data.error) {
-          console.error('Gemini Error:', data.error);
+          // 🚀 DISPATCH EMAIL AFTER SUCCESSFUL PAYMENT
+          if (sessionId && !fulfillmentTriggered.current) {
+            fulfillmentTriggered.current = true;
+            await fetch('/api/generate-protocol/send-results', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                email: parsedProfile.email, 
+                protocol: data.protocol 
+              }),
+            });
+            setEmailSent(true);
+          }
         }
-      } catch (error) {
-        console.error('Analyzer API Connection Error:', error);
-      } finally {
-        setIsAnalyzing(false);
+      } catch (error) { 
+        console.error("Fulfillment Error:", error); 
+      } finally { 
+        clearInterval(progressInterval); 
       }
     }
 
-    generateProtocol();
+    generateAndFulfill();
+    return () => clearInterval(progressInterval);
+  }, [router, searchParams]);
 
-    return () => clearInterval(interval);
+  const handleCheckout = async () => {
+    try {
+      window.focus();
+      const response = await fetch('/api/generate-protocol/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: profile?.email }),
+      });
+      
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(`Checkout Error: ${data.error || "Unable to load Stripe"}`);
+      }
+    } catch (err: any) { 
+      alert("Please open in a standard browser window (No Incognito)."); 
+    }
+  };
 
-  }, [router]);
-
-  // 1. Processing Screen
   if (isAnalyzing) {
-    const ActiveIcon = analysisMessages[analysisStep].icon;
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center space-y-8 min-h-screen bg-white rounded-3xl border border-slate-100 shadow-inner">
-        <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin shadow-lg"></div>
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl shadow-sm border border-slate-100 max-w-lg mx-auto transition-all">
-          <ActiveIcon className="w-10 h-10 text-pink-500 flex-shrink-0" />
-          <p className="text-2xl font-serif font-black text-slate-900 leading-snug animate-pulse">
-            {analysisMessages[analysisStep].message}
-          </p>
+      <div className="flex flex-col items-center justify-center p-8 min-h-screen bg-white text-center">
+        <div className="relative w-32 h-32 mb-8">
+           <div className="absolute inset-0 border-4 border-slate-50 rounded-full"></div>
+           <div className="absolute inset-0 border-4 border-pink-500 rounded-full border-t-transparent animate-spin"></div>
+           <div className="absolute inset-0 flex items-center justify-center font-black text-slate-900 text-xl tracking-tighter">{progress}%</div>
         </div>
-        <p className="text-slate-400 text-sm italic max-w-sm mx-auto leading-relaxed">
-            Please wait. We are analyzing 15 high-fidelity data points on your unique scalp biology, fiber physics, chemical history, and local climate (hard water data) to generate your science-backed Prescription Protocol.
-        </p>
+        <h2 className="text-2xl font-serif font-bold text-slate-800 italic uppercase tracking-widest animate-pulse">Synthesizing...</h2>
       </div>
     );
   }
 
-  // 2. PERFORMANCE-TUNED OUTPUT
-  if (protocol) {
-    const sections = protocol.split('---').filter(Boolean);
+  const sections = protocol.split('---').filter(Boolean);
 
-    return (
-      <div className="min-h-screen bg-slate-50 py-20 px-4 md:px-10">
-        <div className="max-w-7xl mx-auto space-y-12">
-          {/* Branded Header */}
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-pink-500 text-white w-6 h-6 flex items-center justify-center rounded-md font-bold text-xs shadow-sm">C</div>
-                <span className="font-bold text-pink-500 text-xs italic uppercase tracking-wider">AI Tricho-Analyzer Protocol</span>
+  return (
+    <div className="min-h-screen bg-[#FDFDFD] py-12 px-6 lg:px-24 font-sans text-[#1A1A1A]">
+      <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-1000">
+        
+        <div className="border-b border-slate-100 pb-10">
+          <div className="flex items-center gap-2 text-pink-500 font-bold tracking-[0.2em] uppercase text-[10px] mb-4">
+            <Sparkles size={14} /> Diagnostic Analysis
+          </div>
+          <h1 className="text-3xl md:text-5xl font-serif font-black leading-tight text-slate-900">Your Molecular Assessment</h1>
+          <div className="flex flex-wrap items-center gap-4 mt-6">
+            <span className="flex items-center gap-2 bg-slate-50 text-slate-500 px-4 py-1.5 rounded-full font-bold text-[11px] border border-slate-100">
+              <MapPin size={14} className="text-pink-400" /> {userLocation}
+            </span>
+            <span className="text-slate-300 text-[11px] font-bold md:ml-auto uppercase tracking-widest">{currentDate}</span>
+          </div>
+          {emailSent && (
+            <div className="mt-6 flex items-center gap-2 bg-green-50 text-green-700 px-4 py-3 rounded-xl border border-green-100 text-sm font-bold">
+              <CheckCircle size={18} /> Protocol Sent to {profile?.email}
+            </div>
+          )}
+        </div>
+
+        <div className="relative bg-white p-10 md:p-16 rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+            <h2 className="text-xl md:text-2xl font-serif font-bold text-slate-800 mb-10 flex items-center gap-2 italic">
+              <Microscope size={24} className="text-pink-500" /> SECTION I: Biological Assessment
+            </h2>
+            <div 
+              className={`prose prose-slate prose-lg max-w-none text-slate-600 leading-[1.9] ${!isPaid ? 'max-h-[550px] overflow-hidden' : ''}`}
+              dangerouslySetInnerHTML={{ __html: (sections[0] || '') }}
+            />
+
+            {!isPaid && (
+              <div className="absolute bottom-0 left-0 w-full h-[450px] bg-gradient-to-t from-white via-white/98 to-transparent z-10 flex flex-col items-center justify-end pb-16">
+                <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-50 text-center max-w-md mx-4">
+                  <Lock className="text-pink-500 mx-auto mb-4" size={32} />
+                  <h3 className="text-3xl font-black text-slate-900 mb-3 italic tracking-tight uppercase">Analysis Interrupted.</h3>
+                  <button 
+                    onClick={handleCheckout} 
+                    className="w-full bg-pink-500 hover:bg-pink-600 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl transition-all hover:scale-[1.03] active:scale-95"
+                  >
+                    Unlock Full Protocol ($29)
+                  </button>
+                </div>
               </div>
-              <h1 className="text-4xl font-serif font-black text-slate-900 leading-snug">Your Molecular Prescription Protocol</h1>
-              <p className="text-slate-500 mt-2 max-w-2xl leading-relaxed">
-                  Generated from your unique biology: {profile?.type}, {profile?.texture}, {profile?.porosity}. Personalized for Layton, UT (352 PPM Hard Water).
-              </p>
-            </div>
-            <Microscope className="w-16 h-16 text-slate-200 flex-shrink-0" />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <div className="lg:col-span-2 space-y-8">
-              {sections[0] && (
-                <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-100 space-y-6">
-                  <h2 className="text-2xl font-serif font-bold text-slate-800 pb-4 border-b border-slate-100">Section I: The Science of Your Strands</h2>
-                  <div className="prose prose-slate prose-lg max-w-none text-slate-600 leading-relaxed space-y-6">
-                    {sections[0]}
-                  </div>
-                </div>
-              )}
-              {sections[1] && (
-                <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-100 space-y-6">
-                  <h2 className="text-2xl font-serif font-bold text-slate-800 pb-4 border-b border-slate-100">Section II: The 30-Day Prescription Schedule</h2>
-                  <div className="prose prose-slate prose-lg max-w-none text-slate-600 leading-relaxed space-y-6">
-                    {sections[1]}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="lg:col-span-1 space-y-8">
-               {sections[2] && (
-                <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-100 space-y-6">
-                    <h2 className="text-2xl font-serif font-bold text-slate-800 pb-4 border-b border-slate-100">Section III: The Molecular Tool Kit</h2>
-                    <div className="prose prose-slate prose-lg max-w-none text-slate-600 leading-relaxed space-y-6">
-                        {sections[2]}
-                    </div>
-                </div>
-               )}
-            </div>
-          </div>
-
-          {/* Lead Value CTA */}
-          <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between gap-6 border-t-2 border-pink-100">
-             <div>
-                <h3 className="text-2xl font-serif font-bold text-slate-800 leading-tight">Protocol Saved & Emailed</h3>
-                <p className="text-slate-500 mt-2 max-w-xl leading-relaxed">A permanent copy of this 90-day plan has been sent to your inbox. Need 1-on-1 guidance? Book a session below.</p>
-             </div>
-             <button className="py-4 px-10 bg-pink-500 text-white rounded-xl font-bold hover:bg-pink-600 transition-colors shadow-sm">
-                Book Virtual Scan
-             </button>
-          </div>
+            )}
         </div>
-      </div>
-    );
-  }
 
-  return <div className="min-h-screen flex items-center justify-center font-serif text-slate-400 italic">Finalizing your results...</div>;
+        {isPaid && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            {sections[1] && (
+              <div className="bg-white p-10 md:p-16 rounded-[2.5rem] border border-slate-100">
+                <h2 className="text-xl md:text-2xl font-serif font-bold text-slate-800 mb-10 italic">SECTION II: 90-Day Clinical Schedule</h2>
+                <div className="prose prose-slate prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: sections[1] }} />
+              </div>
+            )}
+            {sections[2] && (
+              <div className="bg-white p-10 md:p-16 rounded-[2.5rem] border border-slate-100">
+                <h2 className="text-xl md:text-2xl font-serif font-bold text-slate-800 mb-10 italic">SECTION III: Tool Kit</h2>
+                <div className="prose prose-slate prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: sections[2] }} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function AnalyzePage() {
+  return <Suspense fallback={null}><AnalyzeContent /></Suspense>;
 }
