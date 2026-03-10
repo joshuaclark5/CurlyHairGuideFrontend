@@ -17,13 +17,15 @@ export async function POST(req: Request) {
       payment_method_types: ['card'],
       line_items: [
         {
-          // ✅ UPDATED TO LIVE PRICE ID
+          // ✅ LIVE PRICE ID
           price: 'price_1T9G6uPCkUsgy2hxlROZGMLJ',
           quantity: 1,
         },
       ],
       mode: 'payment',
       customer_email: email,
+      // 🚀 THE FIX: This enables the "Add promotion code" link for your 100% off test
+      allow_promotion_codes: true, 
       // ✅ Dynamic URL based on environment (Local vs Production)
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/analyze?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/analyze`,
